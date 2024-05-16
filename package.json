@@ -1,0 +1,55 @@
+{
+  "name": "@koolie/<my-package>",
+  "version": "0.0.0",
+  "description": "Koolie - Package description",
+  "license": "MIT",
+  "author": "David Tymon",
+  "type": "module",
+  "koolie-module": "<my-package>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dtymon/koolie-<my-package>"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "keywords": [
+    "koolie",
+    "microservices",
+    "typescript"
+  ],
+  "scripts": {
+    "clean": "rimraf ./dist",
+    "compile": "tsc",
+    "dist": "yarn koolie build-dist",
+    "build": "yarn clean && yarn compile && yarn dist",
+    "lint:src": "ESLINT_USE_FLAT_CONFIG=true eslint --config .eslint.config.js --no-error-on-unmatched-pattern --ignore-pattern 'src/**/*.spec.ts' 'src/**/*.ts'",
+    "lint:test": "ESLINT_USE_FLAT_CONFIG=true eslint --config .eslint.config.spec.js --no-error-on-unmatched-pattern 'src/**/*.spec.ts' 'tests/*.spec.ts' 'tests/**/*.spec.ts'",
+    "lint": "yarn lint:src && yarn lint:test",
+    "lint:fix:src": "ESLINT_USE_FLAT_CONFIG=true eslint --fix --config .eslint.config.js --no-error-on-unmatched-pattern --ignore-pattern 'src/**/*.spec.ts' 'src/**/*.ts'",
+    "lint:fix:test": "ESLINT_USE_FLAT_CONFIG=true eslint --fix --config .eslint.config.spec.js --no-error-on-unmatched-pattern 'src/**/*.spec.ts' 'tests/*.spec.ts' 'tests/**/*.spec.ts'",
+    "lint:fix": "yarn lint:fix:src && yarn lint:fix:test",
+    "test": "NODE_CONFIG_DIR=./etc/config NODE_ENV=test yarn node --experimental-vm-modules $(yarn bin jest) --passWithNoTests",
+    "koolie-audit": "yarn run improved-yarn-audit --fail-on-missing-exclusions --ignore-dev-deps --min-severity high",
+    "pre-commit": "yarn build && yarn test && yarn lint && yarn koolie-audit",
+    "koolie": "koolie",
+    "reinstall": "rimraf node_modules yarn.lock; yarn install",
+    "release": "yarn build && yarn lint && yarn test && yarn koolie-audit && yarn mkdirp releases && yarn --cwd dist pack --filename releases/koolie-${npm_package_koolie_module}-v${npm_package_version}.tgz",
+    "npm-publish": "yarn publish --no-git-tag-version --no-commit-hooks --access public releases/koolie-${npm_package_koolie_module}-v${npm_package_version}.tgz",
+    "docs": "yarn koolie build-docs"
+  },
+  "files": [
+    "CHANGELOG.md",
+    "LICENSE",
+    "README.md",
+    "**/*.{ts,js,cjs,mjs,json,pem}",
+    "*.map"
+  ],
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json"
+  }
+}

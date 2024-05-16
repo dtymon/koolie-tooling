@@ -1,0 +1,24 @@
+# Build artefacts and releases
+/dist
+/releases
+
+# Dependencies
+node_modules/
+
+# IDEs
+/.vscode
+
+# Testing
+/test
+/coverage
+/.nyc_output
+
+# NPM
+.npmrc
+npm-debug.log
+
+# Miscellaneous
+.DS_Store
+yarn-error.log
+/**/npm-debug.log
+/.log
