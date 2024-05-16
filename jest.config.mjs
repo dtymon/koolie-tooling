@@ -2,7 +2,7 @@ import koolieBaseJestConfig from './node_modules/@koolie/tooling/jest/jest-base.
 
 const koolieJestConfig = {
   ...koolieBaseJestConfig,
-  testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/dist/']
+  testPathIgnorePatterns: ['<rootDir>/node_modules', '<rootDir>/dist']
 };
 
 export default koolieJestConfig;
