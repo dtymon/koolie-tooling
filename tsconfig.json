@@ -1,11 +1,33 @@
 {
-  "extends": "./node_modules/@koolie/tooling/tsconfig.json",
+  "$schema": "https://json.schemastore.org/tsconfig",
   "include": ["src/*.ts", "src/**/*.ts"],
-  "exclude": ["src/**/*.spec.ts"],
+  "exclude": ["node_modules", "src/**/*.spec.ts"],
   "compilerOptions": {
-    "rootDir": "src",
-    "baseUrl": ".",
+    "module": "Node16",
+    "target": "es2022",
+    "lib": ["es2022"],
+    "moduleResolution": "node16",
+
+    "allowSyntheticDefaultImports": true,
+    "declaration": true,
+    "declarationMap": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "importHelpers": true,
+    "noImplicitReturns": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "strict": true,
+
+    "baseUrl": "src",
     "declarationDir": "dist",
     "outDir": "dist"
+  },
+  "ts-node": {
+    "experimentalResolver": true,
+    "compilerOptions": {
+      "allowImportingTsExtensions": true
+    }
   }
 }

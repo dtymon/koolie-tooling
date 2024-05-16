@@ -1,4 +1,4 @@
-import koolieBaseJestConfig from './node_modules/@koolie/tooling/jest/jest-base.config.mjs';
+import koolieBaseJestConfig from './jest/jest-base.config.mjs';
 
 const koolieJestConfig = {
   ...koolieBaseJestConfig,
