@@ -43,7 +43,8 @@ export default tseslint.config(
       '@typescript-eslint/no-use-before-define': 'off',
       'prettier/prettier': 'error',
       'tsdoc/syntax': 'warn'
-    }
+    },
+    ignores: ['/dist/*']
   },
   {
     files: ['src/**/*.ts'],
