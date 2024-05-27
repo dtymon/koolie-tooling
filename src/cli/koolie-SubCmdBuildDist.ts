@@ -40,17 +40,17 @@ export class SubCommandBuildDist extends SubCommand {
         .option('root', {
           alias: 'r',
           description: 'Root directory containing source and auxiliary files',
-          default: null
+          default: null,
         })
         .option('dest', {
           alias: 'd',
           description: 'Directory where to copy artefacts to',
-          default: 'dist'
+          default: 'dist',
         })
         .option('files', {
           alias: 'f',
           description: 'Additional files to copy into the distribution',
-          type: 'array'
+          type: 'array',
         });
   }
 
@@ -73,7 +73,7 @@ export class SubCommandBuildDist extends SubCommand {
         const dst = path.normalize(path.join(dstDir, src));
         await copy(src, dst, {
           overwrite: true,
-          preserveTimestamps: true
+          preserveTimestamps: true,
         });
       }
     }
@@ -84,7 +84,7 @@ export class SubCommandBuildDist extends SubCommand {
     if (await dirExists(etcSrcRoot)) {
       await copy(etcSrcRoot, etcDstRoot, {
         overwrite: true,
-        preserveTimestamps: true
+        preserveTimestamps: true,
       });
     }
 

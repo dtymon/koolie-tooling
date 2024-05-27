@@ -14,7 +14,7 @@ import { format, Options as PrettierOptions } from 'prettier';
 const JsonFormatOptions: PrettierOptions = {
   parser: 'json',
   tabWidth: 2,
-  trailingComma: 'none'
+  trailingComma: 'none',
 };
 
 /**
