@@ -39,32 +39,32 @@ export class SubCommandBuildDocs extends SubCommand {
           alias: 'e',
           description: 'The entry point(s) to be document',
           array: true,
-          type: 'string'
+          type: 'string',
         })
         .option('strategy', {
           description: 'Strategy to use when resolving dependencies',
           choices: ['resolve', 'expand', 'packages'],
-          default: 'expand'
+          default: 'expand',
         })
         .option('src', {
           alias: 's',
           description: 'Source code directory',
-          type: 'string'
+          type: 'string',
         })
         .option('html', {
           description: 'Generate HTML documentation',
           type: 'boolean',
-          default: true
+          default: true,
         })
         .option('markdown', {
           description: 'Generate Markdown documentation',
           type: 'boolean',
-          default: true
+          default: true,
         })
         .option('preferIndex', {
           description: 'If true, an index.ts file will be used in preference to source files in the same directory',
           type: 'boolean',
-          default: true
+          default: true,
         });
   }
 
