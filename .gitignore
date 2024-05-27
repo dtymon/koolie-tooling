@@ -1,6 +1,8 @@
 # Build artefacts and releases
 /dist
 /releases
+/docs/html-docs
+/docs/markdown-docs
 
 # Dependencies
 node_modules/
