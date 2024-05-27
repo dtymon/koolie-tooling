@@ -1,6 +1,6 @@
 {
   "name": "@koolie/tooling",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Koolie - Tooling required to build Koolie packages and apps",
   "license": "MIT",
   "author": "David Tymon",
