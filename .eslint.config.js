@@ -1,7 +1,8 @@
 import eslint from '@eslint/js';
-import tseslint from 'typescript-eslint';
+import pluginImports from 'eslint-plugin-import';
 import prettier from 'eslint-plugin-prettier';
 import tsdoc from 'eslint-plugin-tsdoc';
+import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   eslint.configs.recommended,
@@ -14,7 +15,7 @@ export default tseslint.config(
         ecmaVersion: 'latest'
       }
     },
-    plugins: { prettier, tsdoc },
+    plugins: { prettier, pluginImports, tsdoc },
     rules: {
       '@typescript-eslint/explicit-function-return-type': 'error',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
@@ -42,6 +43,16 @@ export default tseslint.config(
       ],
       '@typescript-eslint/no-use-before-define': 'off',
       'prettier/prettier': 'error',
+      'sort-imports': [
+        'error',
+        {
+          ignoreCase: false,
+          ignoreDeclarationSort: true,
+          ignoreMemberSort: false,
+          memberSyntaxSortOrder: ['none', 'all', 'multiple', 'single'],
+          allowSeparatedGroups: true
+        },
+      ],
       'tsdoc/syntax': 'warn'
     },
     ignores: ['/dist/*']

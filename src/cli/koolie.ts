@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 import * as path from 'node:path';
-import { readdir, readFile } from 'node:fs/promises';
-import yargs, { Argv, Arguments } from 'yargs';
+import { readFile, readdir } from 'node:fs/promises';
+import yargs, { Arguments, Argv } from 'yargs';
 import { hideBin } from 'yargs/helpers';
 
 import { SubCommand } from './SubCommand.js';

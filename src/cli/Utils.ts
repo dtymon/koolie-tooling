@@ -1,4 +1,4 @@
-import { spawn, SpawnOptions } from 'node:child_process';
+import { SpawnOptions, spawn } from 'node:child_process';
 import { Stats } from 'node:fs';
 import { readFile, stat, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
@@ -8,7 +8,7 @@ import { promisify } from 'node:util';
 
 import * as json5 from 'json5';
 import * as klaw from 'klaw';
-import { format, Options as PrettierOptions } from 'prettier';
+import { Options as PrettierOptions, format } from 'prettier';
 
 /** Default options to use to format JSON content **/
 const JsonFormatOptions: PrettierOptions = {
