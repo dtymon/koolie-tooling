@@ -5,7 +5,7 @@ import { mkdirp } from 'mkdirp';
 import { Arguments, Argv } from 'yargs';
 
 import { SubCommand } from './SubCommand.js';
-import { pathExists, dirExists, filterFile } from './Utils.js';
+import { dirExists, filterFile, pathExists } from './Utils.js';
 
 const ALWAYS_COPY: string[] = ['README.md', 'CHANGELOG.md', 'LICENSE', 'yarn.lock'];
 
