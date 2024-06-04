@@ -1,7 +1,7 @@
+import tseslint from 'typescript-eslint';
+
 import koolieBaseLintConfig from './node_modules/@koolie/tooling/.eslint.config.js';
 
-const koolieLintConfig = {
+export default tseslint.config(
   ...koolieBaseLintConfig
-};
-
-export default koolieLintConfig;
+);
