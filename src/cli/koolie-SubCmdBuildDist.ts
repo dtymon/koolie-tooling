@@ -20,19 +20,18 @@ export class SubCommandBuildDist extends SubCommand {
   }
 
   /**
-   * Get the format of the sub-command. This is required for sub-command that
-   * have positional parameters so their positions can be defined.
+   * Get the description of this sub-command
    *
-   * @returns the sub-command structure
+   * @returns the description of this sub-command
    */
   public description(): string {
     return 'Build the distribution';
   }
 
   /**
-   * Get the description of this sub-command
+   * Called to create the options for this sub-command
    *
-   * @returns the description of this sub-command
+   * @returns a function that can add the sub-command options
    */
   public create(): (yargs: Argv) => Argv {
     return (yargs: Argv) =>
