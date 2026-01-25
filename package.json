@@ -1,6 +1,6 @@
 {
   "name": "@koolie/tooling",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Koolie - Tooling required to build Koolie packages and apps",
   "license": "MIT",
   "author": "David Tymon",
@@ -64,9 +64,6 @@
     "koolie": "./dist/koolie.js",
     "koolie-SubCmdAddPackage.js": "./dist/koolie-SubCmdAddPackage.js",
     "koolie-SubCmdBuildDist.js": "./dist/koolie-SubCmdBuildDist.js",
-    "koolie-SubCmdBuildTypes.js": "./dist/koolie-SubCmdBuildTypes.js",
-    "koolie-SubCmdCreateRC.js": "./dist/koolie-SubCmdCreateRC.js",
-    "koolie-SubCmdCurl.js": "./dist/koolie-SubCmdCurl.js",
     "koolie-SubCmdRemovePackage.js": "./dist/koolie-SubCmdRemovePackage.js"
   },
   "dependencies": {
