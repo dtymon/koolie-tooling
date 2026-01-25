@@ -1,6 +1,6 @@
 {
   "name": "@koolie/tooling",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Koolie - Tooling required to build Koolie packages and apps",
   "license": "MIT",
   "author": "David Tymon",
@@ -24,7 +24,7 @@
   "scripts": {
     "clean": "rimraf ./dist",
     "compile": "tsc",
-    "dist": "yarn koolie build-dist -f .eslintignore .eslint.config.js .eslint.config.spec.js jest tsconfig.json tsconfig.spec.json",
+    "dist": "yarn koolie build-dist -f eslint.config.defaults.mjs eslint.config.mjs eslint.config.spec.mjs jest tsconfig.json tsconfig.spec.json",
     "build": "yarn clean && yarn compile && yarn dist",
     "lint:src": "eslint --config eslint.config.mjs --no-error-on-unmatched-pattern --ignore-pattern 'src/**/*.spec.ts' 'src/**/*.ts'",
     "lint:test": "eslint --config eslint.config.spec.mjs --no-error-on-unmatched-pattern 'src/**/*.spec.ts' 'tests/*.spec.ts' 'tests/**/*.spec.ts'",
@@ -41,9 +41,9 @@
     "npm-publish": "yarn publish --no-git-tag-version --no-commit-hooks --access public releases/koolie-${npm_package_koolie_module}-v${npm_package_version}.tgz"
   },
   "files": [
-    ".eslintignore",
-    ".eslint.config.js",
-    ".eslint.config.spec.js",
+    "eslint.config.defaults.mjs",
+    "eslint.config.mjs",
+    "eslint.config.spec.js",
     "CHANGELOG.md",
     "README.md",
     "jest",
