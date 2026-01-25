@@ -9,8 +9,8 @@ const koolieBaseJestConfig = {
   coverageThreshold: {
     global: {
       branches: 80,
-      lines: 80
-    }
+      lines: 80,
+    },
   },
 
   // All Typescript files should use ESM
@@ -25,8 +25,10 @@ const koolieBaseJestConfig = {
   // module.
   moduleNameMapper: {
     '@src/(.+)\\.js$': '<rootDir>/src/$1',
-    '(.+)\\.js$': '$1'
+    '(.+)\\.js$': '$1',
   },
+
+  modulePathIgnorePatterns: ['<rootDir>/dist/'],
 
   // Use ts-jest as the base config for jest
   preset: 'ts-jest',
@@ -45,11 +47,11 @@ const koolieBaseJestConfig = {
 
   // Perform path transformation for ts and tsx files
   transform: {
-    '^.+\\.tsx?$': ['ts-jest', { useESM: true }]
+    '^.+\\.tsx?$': ['ts-jest', { useESM: true }],
   },
 
   // Run verbosely when executing a single test
-  verbose: true
+  verbose: true,
 };
 
 export default koolieBaseJestConfig;
