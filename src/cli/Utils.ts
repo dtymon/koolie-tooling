@@ -1,5 +1,4 @@
-import { spawn } from 'node:child_process';
-import type { SpawnOptions } from 'node:child_process';
+import { SpawnOptions, spawn } from 'node:child_process';
 import { Stats } from 'node:fs';
 import { readFile, stat, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
@@ -9,8 +8,7 @@ import { promisify } from 'node:util';
 
 import * as json5 from 'json5';
 import * as klaw from 'klaw';
-import { format } from 'prettier';
-import type { Options as PrettierOptions } from 'prettier';
+import { Options as PrettierOptions, format } from 'prettier';
 
 /** Default options to use to format JSON content **/
 const JsonFormatOptions: PrettierOptions = {
@@ -26,7 +24,7 @@ const JsonFormatOptions: PrettierOptions = {
  */
 export function showError(...msgs: string[]): void {
   const prefix = 'Error:';
-  if (msgs.length > 0 && msgs[0] && msgs[0].startsWith(prefix)) {
+  if (msgs.length > 0 && msgs[0].startsWith(prefix)) {
     console.error(...msgs);
   } else {
     console.error(prefix, ...msgs);
@@ -108,7 +106,7 @@ export async function dirExists(first: string, ...others: string[]): Promise<boo
  */
 export async function findFiles(parent: string, filter: (item: klaw.Item) => boolean): Promise<string[]> {
   const matching: string[] = [];
-  for await (const candidate of klaw(parent)) {
+  for await (const candidate of klaw.default(parent)) {
     if (filter(candidate)) {
       matching.push(candidate.path);
     }
