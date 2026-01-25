@@ -1,33 +1,41 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
+
   "include": ["src/*.ts", "src/**/*.ts"],
   "exclude": ["node_modules", "src/**/*.spec.ts"],
-  "compilerOptions": {
-    "module": "Node16",
-    "target": "es2022",
-    "lib": ["es2022"],
-    "moduleResolution": "node16",
 
-    "allowSyntheticDefaultImports": true,
+  "compilerOptions": {
+    /* Runtime & emit */
+    "target": "ES2024",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2024"],
+
+    /* Output */
+    "outDir": "dist",
     "declaration": true,
     "declarationMap": true,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "importHelpers": true,
-    "noImplicitReturns": true,
-    "resolveJsonModule": true,
-    "skipLibCheck": true,
     "sourceMap": true,
-    "strict": true,
 
+    /* Interop & ESM correctness */
+    "allowSyntheticDefaultImports": false,
+    "esModuleInterop": false,
+    "resolveJsonModule": true,
+    "verbatimModuleSyntax": true,
+
+    /* Type safety */
+    "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitReturns": true,
+    "noUncheckedIndexedAccess": true,
+    "useUnknownInCatchVariables": true,
+
+    /* Build hygiene */
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+
+    /* Paths */
     "baseUrl": "src",
-    "declarationDir": "dist",
-    "outDir": "dist"
-  },
-  "ts-node": {
-    "experimentalResolver": true,
-    "compilerOptions": {
-      "allowImportingTsExtensions": true
-    }
+    "declarationDir": "dist"
   }
 }

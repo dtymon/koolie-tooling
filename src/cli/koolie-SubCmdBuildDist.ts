@@ -1,8 +1,8 @@
-import path from 'node:path';
+import * as path from 'node:path';
 
 import { copy } from 'fs-extra';
 import { mkdirp } from 'mkdirp';
-import { Arguments, Argv } from 'yargs';
+import type { Arguments, Argv } from 'yargs';
 
 import { SubCommand } from './SubCommand.js';
 import { dirExists, filterFile, pathExists } from './Utils.js';
@@ -57,7 +57,7 @@ export class SubCommandBuildDist extends SubCommand {
   /**
    * Called to create the options for this sub-command
    *
-   * @returns a function that can add the sub-command options
+   * @returns the exit status of the command
    */
   public async run(args: Arguments): Promise<number> {
     const dstDir = args.dest as string;
@@ -79,7 +79,7 @@ export class SubCommandBuildDist extends SubCommand {
     }
 
     // Copy auxiliary files into the distribution (if any)
-    const etcSrcRoot = path.resolve(rootDir == null ? 'etc' : path.join(rootDir, 'etc'));
+    const etcSrcRoot = path.resolve(rootDir === null ? 'etc' : path.join(rootDir, 'etc'));
     const etcDstRoot = path.join(dstDir, 'etc');
     if (await dirExists(etcSrcRoot)) {
       await copy(etcSrcRoot, etcDstRoot, {
@@ -97,4 +97,4 @@ export class SubCommandBuildDist extends SubCommand {
   }
 }
 
-export default new SubCommandBuildDist();
+export const command = new SubCommandBuildDist();

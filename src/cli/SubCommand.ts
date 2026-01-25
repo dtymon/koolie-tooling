@@ -1,4 +1,4 @@
-import { Arguments, Argv } from 'yargs';
+import type { Arguments, Argv } from 'yargs';
 
 /** Abstract base class for CLI sub-commands */
 export abstract class SubCommand {
@@ -10,7 +10,7 @@ export abstract class SubCommand {
   public abstract name(): string;
 
   /**
-   * Get the format of the sub-command. This is required for sub-command that
+   * Get the format of the sub-command. This is required for sub-commands that
    * have positional parameters so their positions can be defined.
    *
    * @returns the sub-command structure

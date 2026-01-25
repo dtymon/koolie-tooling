@@ -2,7 +2,8 @@
 
 import * as path from 'node:path';
 import { readFile, readdir } from 'node:fs/promises';
-import yargs, { Arguments, Argv } from 'yargs';
+import yargs from 'yargs';
+import type { Arguments, Argv } from 'yargs';
 import { hideBin } from 'yargs/helpers';
 
 import { SubCommand } from './SubCommand.js';
@@ -15,7 +16,7 @@ type SubCommandRunner = (args: Arguments) => Promise<number>;
 /** The Koolie command-line tool main entry point */
 async function main(): Promise<void> {
   // Get the directory that contains this script
-  let koolieBinDir = path.dirname(process.argv[1]);
+  let koolieBinDir = path.dirname(process.argv[1]!);
 
   // All supported sub-commands are loaded at runtime so that more specialised
   // Koolie packages can add their own sub-commands to the CLI. The sub-commands
@@ -49,8 +50,8 @@ async function main(): Promise<void> {
   // Each of these files will define one or more sub-commands when we import
   // them.
   const subCommands: SubCommand[] = [];
-  for (let idx = 0; idx < subCommandFiles.length; ++idx) {
-    await importSubCommand(subCommandFiles[idx], subCommands);
+  for (const file of subCommandFiles) {
+    await importSubCommand(file, subCommands);
   }
 
   // Now with the commands loaded, we can flesh out yargs
@@ -127,7 +128,7 @@ async function importWindowsSubCommand(wrapper: string, subCommands: SubCommand[
     // where <path-to-module> is relative to the node_modules directory
     const match = /\.\.\\(.*\.js)/g.exec(contents);
     if (match) {
-      const jsSourceFile = path.join(process.cwd(), 'node_modules', match[1]);
+      const jsSourceFile = path.join(process.cwd(), 'node_modules', match[1]!);
       return importSubCommandSourceFile(jsSourceFile, subCommands);
     }
   } catch (err) {
@@ -144,15 +145,29 @@ async function importWindowsSubCommand(wrapper: string, subCommands: SubCommand[
  */
 async function importSubCommandSourceFile(filename: string, subCommands: SubCommand[]): Promise<void> {
   try {
-    // The JS source file is expected to have a default export which contains a
-    // SubCommand instance or an array of instances.
-    const subCommandExports: any = await import(filename);
-    const defaultExport: SubCommand | SubCommand[] = subCommandExports.default;
-    if (defaultExport !== undefined) {
-      if (Array.isArray(defaultExport)) {
-        subCommands.push(...defaultExport.filter((sc) => sc instanceof SubCommand));
-      } else if (defaultExport instanceof SubCommand) {
-        subCommands.push(defaultExport);
+    // The source file is expected to have an export called "command" or
+    // "commands" (or both) which contain a SubCommand instance or an array of
+    // instances.
+    const subCommandExports = await import(filename);
+    if (subCommandExports.command !== undefined) {
+      if (subCommandExports.command instanceof SubCommand) {
+        subCommands.push(subCommandExports.command);
+      } else {
+        throw new Error(`${filename}: Sub-command export "command" is expected to be an instance of SubCommand`);
+      }
+    }
+
+    if (subCommandExports.commands !== undefined) {
+      const commands = subCommandExports.commands;
+      if (!Array.isArray(commands)) {
+        throw new Error(`${filename}: Sub-command export "commands" is expected to be an array of SubCommand`);
+      }
+
+      for (const command of commands) {
+        if (!(command instanceof SubCommand)) {
+          throw new Error(`${filename}: All exported sub-commands are expected to be an instance of SubCommand`);
+        }
+        subCommands.push(command);
       }
     }
   } catch (err) {
