@@ -4,11 +4,11 @@ import { Stats } from 'node:fs';
 import { readFile, stat, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import { createInterface } from 'node:readline';
+import { createInterface as createInterfacePromises } from 'node:readline/promises';
 import { PassThrough } from 'node:stream';
-import { promisify } from 'node:util';
 
 import * as json5 from 'json5';
-import * as klaw from 'klaw';
+import klaw from 'klaw';
 import { format } from 'prettier';
 import type { Options as PrettierOptions } from 'prettier';
 
@@ -20,13 +20,33 @@ const JsonFormatOptions: PrettierOptions = {
 };
 
 /**
+ * Shape of the application/package config files this tooling reads. The only
+ * field that is interpreted directly is `$extends`; everything else is passed
+ * through unchanged.
+ */
+export interface KoolieConfig {
+  $extends?: string[];
+}
+
+/**
+ * Convert a thrown value to a printable string. JavaScript allows throwing
+ * non-Error values so callers must coerce safely before logging.
+ *
+ * @param err - the value caught from a try/catch block
+ * @returns a printable error message
+ */
+export function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+/**
  * Display an error message to stderr
  *
  * @param msgs - error message to display
  */
 export function showError(...msgs: string[]): void {
   const prefix = 'Error:';
-  if (msgs.length > 0 && msgs[0] && msgs[0].startsWith(prefix)) {
+  if (msgs[0]?.startsWith(prefix)) {
     console.error(...msgs);
   } else {
     console.error(prefix, ...msgs);
@@ -56,8 +76,8 @@ export async function exists(first: string, ...others: string[]): Promise<Stats 
   try {
     const stats = await stat(pathname);
     return stats;
-  } catch (err: any) {
-    if (err.code === 'ENOENT') {
+  } catch (err) {
+    if (err instanceof Error && (err as NodeJS.ErrnoException).code === 'ENOENT') {
       return null;
     }
     throw err;
@@ -141,19 +161,19 @@ export async function filterFile(
  * @param filename - file to read
  * @returns the parsed JSON5 contents
  */
-export async function readJsonFile<T = Record<string, any>>(filename: string): Promise<T> {
+export async function readJsonFile<T = unknown>(filename: string): Promise<T> {
   let contents: string;
   try {
     contents = await readFile(filename, 'utf8');
-  } catch (err: any) {
-    showError(`Failed to read JSON5 file ${filename}: ${err.toString()}`);
+  } catch (err) {
+    showError(`Failed to read JSON5 file ${filename}: ${errorMessage(err)}`);
     throw err;
   }
 
   try {
     return json5.parse<T>(contents);
-  } catch (err: any) {
-    showError(`Failed to parse JSON5 file ${filename}: ${err.toString()}`);
+  } catch (err) {
+    showError(`Failed to parse JSON5 file ${filename}: ${errorMessage(err)}`);
     throw err;
   }
 }
@@ -164,12 +184,12 @@ export async function readJsonFile<T = Record<string, any>>(filename: string): P
  * @param filename - file to create
  * @param contents - contents to write to the file
  */
-export function writeJsonFile<T = Record<string, any>>(filename: string, contents: T): Promise<void> {
+export function writeJsonFile<T = unknown>(filename: string, contents: T): Promise<void> {
   let stringified: string;
   try {
     stringified = JSON.stringify(contents);
-  } catch (err: any) {
-    showError(`Failed to stringify JSON object: ${err.toString()}`);
+  } catch (err) {
+    showError(`Failed to stringify JSON object: ${errorMessage(err)}`);
     throw err;
   }
 
@@ -186,15 +206,15 @@ export async function writeJsonStringToFile(filename: string, contents: string):
   let formatted: string;
   try {
     formatted = await format(contents, JsonFormatOptions);
-  } catch (err: any) {
-    showError(`Failed to format JSON object: ${err.toString()}`);
+  } catch (err) {
+    showError(`Failed to format JSON object: ${errorMessage(err)}`);
     throw err;
   }
 
   try {
     await writeFile(filename, formatted, 'utf8');
-  } catch (err: any) {
-    showError(`Error: Failed to write JSON file ${filename}: ${err.toString()}`);
+  } catch (err) {
+    showError(`Error: Failed to write JSON file ${filename}: ${errorMessage(err)}`);
     throw err;
   }
 }
@@ -206,11 +226,12 @@ export async function writeJsonStringToFile(filename: string, contents: string):
  * @returns the user's response
  */
 export async function ask(prompt: string): Promise<string> {
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
-  const ask = promisify(rl.question).bind(rl);
-
-  const answer = (await ask(prompt)) as any as string;
-  return answer;
+  const rl = createInterfacePromises({ input: process.stdin, output: process.stdout });
+  try {
+    return await rl.question(prompt);
+  } finally {
+    rl.close();
+  }
 }
 
 /**
@@ -221,16 +242,12 @@ export async function ask(prompt: string): Promise<string> {
  * @param opts - options for `spawn`
  * @returns the exit status of the command
  */
-export function executeCommand(cmd: string, args: any[], opts: SpawnOptions): Promise<number> {
+export function executeCommand(cmd: string, args: string[], opts: SpawnOptions): Promise<number> {
   return new Promise<number>((resolve, reject) => {
     const child = spawn(cmd, args, opts);
-    if (child === null) {
-      reject(new Error(`Failed to start command: ${cmd}`));
-    } else {
-      let fulfilled = 0;
-      child.on('error', (err) => !fulfilled++ && reject(err));
-      child.on('close', (code: number) => !fulfilled++ && resolve(code));
-    }
+    let fulfilled = 0;
+    child.on('error', (err) => !fulfilled++ && reject(err));
+    child.on('close', (code: number) => !fulfilled++ && resolve(code));
   });
 }
 
@@ -245,7 +262,7 @@ export function executeCommand(cmd: string, args: any[], opts: SpawnOptions): Pr
  */
 export function streamCommandInto(
   cmd: string,
-  args: any[],
+  args: string[],
   opts: SpawnOptions,
   stdout: NodeJS.WritableStream
 ): Promise<number> {
@@ -254,9 +271,6 @@ export function streamCommandInto(
     // parent process.
     opts.stdio = ['ignore', 'pipe', 'inherit'];
     const child = spawn(cmd, args, opts);
-    if (child === null) {
-      throw new Error(`Failed to start command: ${cmd}`);
-    }
 
     let fulfilled = 0;
     (child.stdout as NodeJS.ReadableStream).pipe(stdout);
@@ -273,7 +287,7 @@ export function streamCommandInto(
  * @param opts - options for spawn
  * @returns the lines of output
  */
-export async function executeAndGetOutput(cmd: string, args: any[], opts: SpawnOptions): Promise<string[]> {
+export async function executeAndGetOutput(cmd: string, args: string[], opts: SpawnOptions): Promise<string[]> {
   // Create a pass through stream and connect a readline instance to it
   const pt = new PassThrough();
   const rl = createInterface({ input: pt });

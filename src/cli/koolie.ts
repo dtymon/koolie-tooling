@@ -7,7 +7,18 @@ import type { Arguments, Argv } from 'yargs';
 import { hideBin } from 'yargs/helpers';
 
 import { SubCommand } from './SubCommand.js';
-import { fileExists } from './Utils.js';
+import { errorMessage, fileExists } from './Utils.js';
+
+/**
+ * Shape that a dynamically-loaded sub-command module is expected to expose.
+ * Properties are typed as `unknown` because there is no compile-time guarantee
+ * about the loaded module — the `instanceof SubCommand` and `Array.isArray`
+ * guards below provide the actual runtime defence.
+ */
+interface SubCommandModule {
+  command?: unknown;
+  commands?: unknown;
+}
 
 // A sub-command runner is passed the command line arguments and is expected to
 // return the exit code for the command.
@@ -43,7 +54,7 @@ async function main(): Promise<void> {
       .filter((name) => /^koolie-SubCmd[^.]*\.js$/.test(name))
       .map((name) => path.join(koolieBinDir, name));
   } catch (err) {
-    console.error(`Error: Failed to file Koolie sub-command files in ${koolieBinDir}: ${err}`);
+    console.error(`Error: Failed to file Koolie sub-command files in ${koolieBinDir}: ${errorMessage(err)}`);
     process.exit(1);
   }
 
@@ -62,7 +73,7 @@ async function main(): Promise<void> {
     .recommendCommands();
 
   // Keep a map of runners to the sub-command they can run
-  const subCommandRunners: Map<string, SubCommandRunner> = new Map();
+  const subCommandRunners = new Map<string, SubCommandRunner>();
   argv = subCommands.reduce((argv: Argv, sc: SubCommand) => {
     subCommandRunners.set(sc.name(), (args: Arguments) => sc.run(args));
     return argv.command(sc.command() ?? sc.name(), sc.description(), sc.create());
@@ -105,7 +116,7 @@ async function importSubCommand(filename: string, subCommands: SubCommand[]): Pr
       return importSubCommandSourceFile(filename, subCommands);
     }
   } catch (err) {
-    console.error(`Failed to import sub-command source: ${filename}: ${err}`);
+    console.error(`Failed to import sub-command source: ${filename}: ${errorMessage(err)}`);
     process.exit(1);
   }
 }
@@ -132,7 +143,7 @@ async function importWindowsSubCommand(wrapper: string, subCommands: SubCommand[
       return importSubCommandSourceFile(jsSourceFile, subCommands);
     }
   } catch (err) {
-    console.error(`Failed to import sub-command source via Windows wrapper: ${wrapper}: ${err}`);
+    console.error(`Failed to import sub-command source via Windows wrapper: ${wrapper}: ${errorMessage(err)}`);
     process.exit(1);
   }
 }
@@ -148,7 +159,7 @@ async function importSubCommandSourceFile(filename: string, subCommands: SubComm
     // The source file is expected to have an export called "command" or
     // "commands" (or both) which contain a SubCommand instance or an array of
     // instances.
-    const subCommandExports = await import(filename);
+    const subCommandExports = (await import(filename)) as SubCommandModule;
     if (subCommandExports.command !== undefined) {
       if (subCommandExports.command instanceof SubCommand) {
         subCommands.push(subCommandExports.command);
@@ -171,7 +182,7 @@ async function importSubCommandSourceFile(filename: string, subCommands: SubComm
       }
     }
   } catch (err) {
-    console.error(`Failed to import sub-command source: ${filename}: ${err}`);
+    console.error(`Failed to import sub-command source: ${filename}: ${errorMessage(err)}`);
     process.exit(1);
   }
 }
@@ -179,7 +190,7 @@ async function importSubCommandSourceFile(filename: string, subCommands: SubComm
 try {
   await main();
   process.exit(0);
-} catch (err: any) {
+} catch (err) {
   console.error('Caught unexpected exception', err);
   process.exit(1);
 }

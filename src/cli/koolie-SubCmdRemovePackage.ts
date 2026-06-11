@@ -4,7 +4,13 @@ import { readFile } from 'node:fs/promises';
 import type { Arguments, Argv } from 'yargs';
 
 import { SubCommand } from './SubCommand.js';
-import { showError, executeCommand, findFiles, readJsonFile, writeJsonStringToFile } from './Utils.js';
+import { errorMessage, showError, executeCommand, findFiles, readJsonFile, writeJsonStringToFile } from './Utils.js';
+import type { KoolieConfig } from './Utils.js';
+
+/** Parsed command-line options for the `remove-package` sub-command */
+interface RemovePackageOptions {
+  packages?: string[];
+}
 
 export class SubCommandRemovePackage extends SubCommand {
   /**
@@ -54,8 +60,9 @@ export class SubCommandRemovePackage extends SubCommand {
    */
   public async run(args: Arguments): Promise<number> {
     try {
-      const toBeRemoved = args.packages ?? [];
-      if (!Array.isArray(toBeRemoved) || toBeRemoved.length < 1) {
+      const opts = args as Arguments<RemovePackageOptions>;
+      const toBeRemoved = opts.packages ?? [];
+      if (toBeRemoved.length < 1) {
         throw new Error('Specify at least one package to be removed');
       }
 
@@ -66,8 +73,8 @@ export class SubCommandRemovePackage extends SubCommand {
       }
 
       return 0;
-    } catch (err: any) {
-      showError(err.toString());
+    } catch (err) {
+      showError(errorMessage(err));
       return 1;
     }
   }
@@ -121,7 +128,7 @@ export class SubCommandRemovePackage extends SubCommand {
     // Read the contents of the config file to see if we need to remove any
     // extensions. It needs to be parsed with JSON5 because it can contain
     // comments.
-    const parsedConfig = await readJsonFile(configFile);
+    const parsedConfig = await readJsonFile<KoolieConfig>(configFile);
 
     // If there's no extension block then we can leave now
     const extensions: string[] = parsedConfig.$extends ?? [];
@@ -153,8 +160,8 @@ export class SubCommandRemovePackage extends SubCommand {
     let unparsedConfig: string;
     try {
       unparsedConfig = await readFile(configFile, 'utf8');
-    } catch (err: any) {
-      showError(`Failed to read ${configFile}: ${err.toString()}`);
+    } catch (err) {
+      showError(`Failed to read ${configFile}: ${errorMessage(err)}`);
       throw err;
     }
 

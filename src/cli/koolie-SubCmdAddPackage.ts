@@ -5,6 +5,7 @@ import type { Arguments, Argv } from 'yargs';
 
 import { SubCommand } from './SubCommand.js';
 import {
+  errorMessage,
   showError,
   executeCommand,
   fileExists,
@@ -13,6 +14,16 @@ import {
   writeJsonFile,
   writeJsonStringToFile,
 } from './Utils.js';
+import type { KoolieConfig } from './Utils.js';
+
+/** Parsed command-line options for the `add-package` sub-command */
+interface AddPackageOptions {
+  packages?: string[];
+  ver?: string;
+  tilde: boolean;
+  caret: boolean;
+  force: boolean;
+}
 
 export class SubCommandAddPackage extends SubCommand {
   /**
@@ -85,8 +96,9 @@ export class SubCommandAddPackage extends SubCommand {
    */
   public async run(args: Arguments): Promise<number> {
     try {
-      const toBeAdded = args.packages ?? [];
-      if (!Array.isArray(toBeAdded) || toBeAdded.length < 1) {
+      const opts = args as Arguments<AddPackageOptions>;
+      const toBeAdded = opts.packages ?? [];
+      if (toBeAdded.length < 1) {
         throw new Error('Specify at least one package to be added');
       }
 
@@ -105,13 +117,13 @@ export class SubCommandAddPackage extends SubCommand {
       }
 
       const match = /^[^0-9]*(\d+\.\d+\.\d+)/.exec(buildVersion);
-      if (match) {
+      if (match?.[1] !== undefined) {
         buildVersion = match[1];
       }
 
       // Show a warning if an explicit version was specified by the user that
       // does not match the version of the tooling.
-      const versionToUse = args.ver ?? buildVersion;
+      const versionToUse = opts.ver ?? buildVersion;
       if (versionToUse !== buildVersion) {
         console.error('Warning: Mixing different versions for Koolie packages is discouraged');
         console.error(`  Koolie tooling version: ${buildVersion}`);
@@ -119,14 +131,14 @@ export class SubCommandAddPackage extends SubCommand {
       }
 
       const dependencies = (manifest.dependencies ?? {}) as Record<string, string>;
-      const fullVersion = args.caret ? `^${versionToUse}` : `~${versionToUse}`;
+      const fullVersion = opts.caret ? `^${versionToUse}` : `~${versionToUse}`;
       for (const name of toBeAdded) {
-        await this.addDependency(args, dependencies, name, fullVersion);
+        await this.addDependency(opts, dependencies, name, fullVersion);
       }
 
       return 0;
-    } catch (err: any) {
-      showError(err.toString());
+    } catch (err) {
+      showError(errorMessage(err));
       return 1;
     }
   }
@@ -134,20 +146,20 @@ export class SubCommandAddPackage extends SubCommand {
   /**
    * Add a dependency on the given package at the given version
    *
-   * @param args - the command line arguments
+   * @param opts - the parsed command-line options
    * @param dependencies - the package dependencies
    * @param name - the dependency to add
    * @param version - the version to add
    */
   private async addDependency(
-    args: Arguments,
+    opts: Arguments<AddPackageOptions>,
     dependencies: Record<string, unknown>,
     name: string,
     version: string
   ): Promise<void> {
     const pkgName = `@koolie/${name}`;
     const pkgVersion = dependencies[pkgName];
-    if (!args.force && pkgVersion === version) {
+    if (!opts.force && pkgVersion === version) {
       console.error(`Warning: ${pkgName}@${version} is already a dependency ... skipping`);
     } else {
       // Use `yarn` to add the dependency
@@ -196,9 +208,9 @@ export class SubCommandAddPackage extends SubCommand {
       // We just need to create this config file and extend it from the one
       // provided by the package we now depend on.
       try {
-        await writeJsonFile(destFile, { $extends: [configToExtendFrom] });
-      } catch (err: any) {
-        showError(`Failed to create config file "${destFile}": ${err.toString()}`);
+        await writeJsonFile<KoolieConfig>(destFile, { $extends: [configToExtendFrom] });
+      } catch (err) {
+        showError(`Failed to create config file "${destFile}": ${errorMessage(err)}`);
         throw err;
       }
 
@@ -208,9 +220,9 @@ export class SubCommandAddPackage extends SubCommand {
     // The config file already exists. Read its contents to see if we need to
     // add this extension. It needs to be parsed with JSON5 because it can
     // contain comments.
-    const parsedConfig = await readJsonFile(destFile);
-    const extensions = parsedConfig.$extends ?? [];
-    if (extensions.indexOf(configToExtendFrom) >= 0) {
+    const parsedConfig = await readJsonFile<KoolieConfig>(destFile);
+    const extensions: string[] = parsedConfig.$extends ?? [];
+    if (extensions.includes(configToExtendFrom)) {
       return;
     }
 
@@ -227,8 +239,8 @@ export class SubCommandAddPackage extends SubCommand {
     let unparsedConfig: string;
     try {
       unparsedConfig = await readFile(destFile, 'utf8');
-    } catch (err: any) {
-      showError(`Failed to read ${destFile}: ${err.toString()}`);
+    } catch (err) {
+      showError(`Failed to read ${destFile}: ${errorMessage(err)}`);
       throw err;
     }
 

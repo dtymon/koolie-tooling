@@ -1,51 +1,48 @@
 import { defineConfig } from 'eslint/config';
-import eslint from '@eslint/js';
-
 import tseslint from 'typescript-eslint';
-import tsdoc from 'eslint-plugin-tsdoc';
-import prettier from 'eslint-plugin-prettier';
-import importPlugin from 'eslint-plugin-import';
+import prettierConfig from 'eslint-config-prettier';
+import prettierPlugin from 'eslint-plugin-prettier';
+import tsdocPlugin from 'eslint-plugin-tsdoc';
 
-export default defineConfig([
-  // Base ESLint recommended
-  eslint.configs.recommended,
-
-  // import plugin flat config
-  importPlugin.flatConfigs.recommended,
-
-  // TypeScript-ESLint recommended configs
-  ...tseslint.configs.recommended,
-
-  // Main project rules
+export const defaultConfig = defineConfig([
   {
-    linterOptions: {
-      reportUnusedDisableDirectives: false,
-    },
+    extends: [...tseslint.configs.recommendedTypeChecked, ...tseslint.configs.stylisticTypeChecked],
 
-    languageOptions: {
-      parser: tseslint.parser,
-      parserOptions: {
-        project: 'tsconfig.json',
-        sourceType: 'module',
-        ecmaVersion: 'latest',
-      },
+    linterOptions: {
+      reportUnusedDisableDirectives: 'off',
     },
 
     plugins: {
-      '@typescript-eslint': tseslint.plugin,
-      prettier,
-      tsdoc,
+      prettier: prettierPlugin,
+      tsdoc: tsdocPlugin,
     },
 
     rules: {
       eqeqeq: 'error',
 
-      '@typescript-eslint/explicit-function-return-type': 'off',
-      '@typescript-eslint/explicit-module-boundary-types': 'off',
-      '@typescript-eslint/no-explicit-any': 'off',
+      // Class members must declare visibility explicitly
+      '@typescript-eslint/explicit-member-accessibility': 'error',
 
+      // Functions should declare their return type at API boundaries
+      '@typescript-eslint/explicit-function-return-type': [
+        'error',
+        {
+          allowExpressions: true,
+          allowTypedFunctionExpressions: true,
+          allowHigherOrderFunctions: true,
+        },
+      ],
+
+      // Async safety
       '@typescript-eslint/no-floating-promises': ['error', { ignoreVoid: true }],
 
+      // Catch dead conditions implied by the type system
+      '@typescript-eslint/no-unnecessary-condition': 'error',
+
+      // Enforce exhaustive switches over unions and enums
+      '@typescript-eslint/switch-exhaustiveness-check': 'error',
+
+      // Allow `declare namespace ...` for module augmentation; not in code
       '@typescript-eslint/no-namespace': [
         'error',
         {
@@ -54,9 +51,7 @@ export default defineConfig([
         },
       ],
 
-      '@typescript-eslint/no-parameter-properties': 'off',
-
-      // Disable base rule — TS version is correct
+      // Defer to the typescript-aware variant
       'no-unused-expressions': 'off',
       '@typescript-eslint/no-unused-expressions': 'error',
 
@@ -73,44 +68,14 @@ export default defineConfig([
         },
       ],
 
-      '@typescript-eslint/no-use-before-define': 'off',
+      // Mirror the tsconfig `useUnknownInCatchVariables` setting at the lint layer
+      '@typescript-eslint/use-unknown-in-catch-callback-variable': 'error',
 
+      'tsdoc/syntax': 'error',
       'prettier/prettier': 'error',
-
-      'import/named': 'off',
-      'import/no-unresolved': 'off',
-      'import/export': 'off',
-      'import/no-duplicates': 'off',
-
-      'tsdoc/syntax': 'warn',
-    },
-
-    settings: {
-      'import/resolver': {
-        typescript: {
-          project: './tsconfig.json',
-        },
-      },
-    },
-
-    ignores: ['/dist/*'],
-  },
-
-  // Library files
-  {
-    files: ['src/lib/**/*.ts'],
-    rules: {
-      'no-console': ['error', { allow: ['warn', 'error'] }],
     },
   },
 
-  // CLI / bin files
-  {
-    files: ['src/bin/**/*.ts'],
-    rules: {
-      'no-console': 'off',
-      'no-undef': 'off',
-      '@typescript-eslint/no-var-requires': 'off',
-    },
-  },
+  // Disables stylistic rules that would conflict with prettier
+  prettierConfig,
 ]);
