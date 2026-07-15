@@ -3,8 +3,9 @@ import { readFile } from 'node:fs/promises';
 
 import type { Arguments, Argv } from 'yargs';
 
+import { PackageManager } from './PackageManager.js';
 import { SubCommand } from './SubCommand.js';
-import { errorMessage, showError, executeCommand, findFiles, readJsonFile, writeJsonStringToFile } from './Utils.js';
+import { errorMessage, showError, findFiles, readJsonFile, writeJsonStringToFile } from './Utils.js';
 import type { KoolieConfig } from './Utils.js';
 
 /** Parsed command-line options for the `remove-package` sub-command */
@@ -28,7 +29,7 @@ export class SubCommandRemovePackage extends SubCommand {
    * @returns the description of this sub-command
    */
   public description(): string {
-    return 'Remove a dependency on a Koolie package';
+    return 'Remove a Koolie package and unwire its default config from the application';
   }
 
   /**
@@ -47,10 +48,27 @@ export class SubCommandRemovePackage extends SubCommand {
    */
   public create(): (yargs: Argv) => Argv {
     return (yargs: Argv) =>
-      yargs.positional('packages', {
-        description: 'The packages to be removed as dependencies',
-        choices: ['types'],
-      });
+      yargs
+        .usage(
+          [
+            'Usage: $0 remove-package <packages..>',
+            '',
+            'Remove one or more Koolie package dependencies and strip their `$extends`',
+            "entries from this application's configuration files.",
+          ].join('\n')
+        )
+        .positional('packages', {
+          description: 'Names of Koolie packages to remove (e.g. "types" for @koolie/types)',
+          choices: ['types'],
+        })
+        .example('$0 remove-package types', 'Remove @koolie/types and unwire its default config')
+        .epilogue(
+          [
+            'This command edits config files under application/src/config/ that follow',
+            'the koolie template (an opening object with `$extends` as the first key).',
+            'For configs that diverge from this layout, edit `$extends` manually.',
+          ].join('\n')
+        );
   }
 
   /**
@@ -91,8 +109,9 @@ export class SubCommandRemovePackage extends SubCommand {
     if (pkgVersion === undefined) {
       console.error(`Warning: ${pkgName} is not a dependency ... skipping`);
     } else {
-      // Use `yarn` to remove the dependency
-      const rc = await executeCommand('yarn', ['remove', pkgName], { stdio: 'inherit' });
+      // Defer to whichever package manager the consumer is using
+      const pm = await PackageManager.detect();
+      const rc = await pm.remove(pkgName);
       if (rc !== 0) {
         throw new Error(`Failed to remove the dependency ${pkgName}`);
       }

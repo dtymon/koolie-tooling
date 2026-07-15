@@ -2,12 +2,14 @@ import { spawn } from 'node:child_process';
 import type { SpawnOptions } from 'node:child_process';
 import { Stats } from 'node:fs';
 import { readFile, stat, writeFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import * as path from 'node:path';
 import { createInterface } from 'node:readline';
 import { createInterface as createInterfacePromises } from 'node:readline/promises';
 import { PassThrough } from 'node:stream';
+import { pathToFileURL } from 'node:url';
 
-import * as json5 from 'json5';
+import json5 from 'json5';
 import klaw from 'klaw';
 import { format } from 'prettier';
 import type { Options as PrettierOptions } from 'prettier';
@@ -117,6 +119,24 @@ export async function fileExists(first: string, ...others: string[]): Promise<bo
 export async function dirExists(first: string, ...others: string[]): Promise<boolean> {
   const stats = await exists(first, ...others);
   return stats === null ? false : stats.isDirectory();
+}
+
+/**
+ * Resolve the on-disk root directory of an installed package by name. Uses
+ * Node's resolver anchored at `cwd` so it works under any package manager
+ * layout (Yarn 1, npm, pnpm hoisted/isolated, Yarn PnP) — the active PM's
+ * resolution rules are the ones that get followed.
+ *
+ * @param packageName - bare package specifier (e.g. `@koolie/types`)
+ * @param cwd - working directory to anchor resolution from (defaults to
+ *              `process.cwd()`)
+ * @returns the absolute path of the package's installed root directory
+ */
+export function resolvePackageRoot(packageName: string, cwd: string = process.cwd()): string {
+  const anchor = pathToFileURL(path.join(cwd, 'package.json'));
+  const requireFromCwd = createRequire(anchor);
+  const manifestPath = requireFromCwd.resolve(`${packageName}/package.json`);
+  return path.dirname(manifestPath);
 }
 
 /**

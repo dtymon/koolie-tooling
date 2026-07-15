@@ -3,14 +3,15 @@ import { readFile } from 'node:fs/promises';
 
 import type { Arguments, Argv } from 'yargs';
 
+import { PackageManager } from './PackageManager.js';
 import { SubCommand } from './SubCommand.js';
 import {
   errorMessage,
   showError,
-  executeCommand,
   fileExists,
   findFiles,
   readJsonFile,
+  resolvePackageRoot,
   writeJsonFile,
   writeJsonStringToFile,
 } from './Utils.js';
@@ -41,7 +42,7 @@ export class SubCommandAddPackage extends SubCommand {
    * @returns the description of this sub-command
    */
   public description(): string {
-    return 'Add a dependency on a Koolie package';
+    return 'Add a Koolie package and wire its default config into the application';
   }
 
   /**
@@ -61,32 +62,57 @@ export class SubCommandAddPackage extends SubCommand {
   public create(): (yargs: Argv) => Argv {
     return (yargs: Argv) =>
       yargs
+        .usage(
+          [
+            'Usage: $0 add-package <packages..> [options]',
+            '',
+            'Add one or more Koolie packages as dependencies and import their',
+            'default configuration into this application via `$extends` references.',
+          ].join('\n')
+        )
         .positional('packages', {
-          description: 'The packages to be added as dependencies',
+          description: 'Names of Koolie packages to add (e.g. "types" for @koolie/types)',
           choices: ['types'],
         })
         .option('ver', {
           alias: 'v',
-          description: 'Specify the version of the package to depend on',
+          description: 'Version of the package to depend on (defaults to the @koolie/tooling version)',
         })
         .option('tilde', {
           alias: 't',
-          description: 'Limit the dependency to use a version with the same minor number',
+          description: 'Pin the dependency to the same minor version (~x.y.z)',
           type: 'boolean',
           default: true,
         })
         .option('caret', {
           alias: 'c',
-          description: 'Limit the dependency to use a version with the same major number',
+          description: 'Pin the dependency to the same major version (^x.y.z)',
           type: 'boolean',
           default: false,
         })
         .option('force', {
           alias: 'f',
-          description: 'Normally no action will be taken if the dependency already exists',
+          description: 'Re-add even if the dependency is already at the target version',
           type: 'boolean',
           default: false,
-        });
+        })
+        .example('$0 add-package types', 'Add @koolie/types at the same version as @koolie/tooling')
+        .example('$0 add-package types --ver 0.7.0', 'Add @koolie/types pinned to a specific version')
+        .epilogue(
+          [
+            'This command edits config files under application/src/config/ that follow',
+            'the koolie template:',
+            '',
+            '  {',
+            '    "$extends": [...],',
+            '    ...',
+            '  }',
+            '',
+            'For configs that diverge from this layout, edit `$extends` manually. Any',
+            'comments inside the `$extends` array itself are not preserved; comments',
+            'elsewhere in the file are.',
+          ].join('\n')
+        );
   }
 
   /**
@@ -162,16 +188,19 @@ export class SubCommandAddPackage extends SubCommand {
     if (!opts.force && pkgVersion === version) {
       console.error(`Warning: ${pkgName}@${version} is already a dependency ... skipping`);
     } else {
-      // Use `yarn` to add the dependency
-      const rc = await executeCommand('yarn', ['add', `${pkgName}@${version}`], { stdio: 'inherit' });
+      // Defer to whichever package manager the consumer is using
+      const pm = await PackageManager.detect();
+      const rc = await pm.add(`${pkgName}@${version}`);
       if (rc !== 0) {
         throw new Error(`Failed to add the dependency ${pkgName}@${version}`);
       }
     }
 
     // Now find all configuration files that the package has and make sure they
-    // are imported by this application.
-    const configRoot = path.join('node_modules', '@koolie', name, 'config');
+    // are imported by this application. Resolve the package root via Node's
+    // resolver so this works under any package manager linker.
+    const packageRoot = resolvePackageRoot(pkgName);
+    const configRoot = path.join(packageRoot, 'config');
     const configFiles = await findFiles(configRoot, (item) => {
       if (item.stats.isFile()) {
         const parentDir = path.basename(path.dirname(item.path));
@@ -182,13 +211,17 @@ export class SubCommandAddPackage extends SubCommand {
       return false;
     });
 
-    const regex = new RegExp(`(${configRoot}.*\\.json)$`);
+    // The `$extends` strings written into the consumer's configs follow a
+    // runtime contract owned by the config loader: they're literal
+    // `node_modules/@koolie/<name>/config/<file>` paths. That contract is
+    // outside the scope of this CLI to change, so the file walk uses the
+    // resolved package root (PM-agnostic) but the string we write back keeps
+    // the legacy shape.
+    const legacyConfigRoot = path.join('node_modules', '@koolie', name, 'config');
     for (const configFile of configFiles) {
-      const match = regex.exec(configFile);
-      if (match) {
-        const relativePath = match[1]!;
-        await this.addConfigImport(relativePath);
-      }
+      const relativeWithinConfig = path.relative(configRoot, configFile);
+      const legacyPath = path.join(legacyConfigRoot, relativeWithinConfig);
+      await this.addConfigImport(legacyPath);
     }
   }
 
