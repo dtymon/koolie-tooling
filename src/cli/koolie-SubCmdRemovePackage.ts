@@ -3,8 +3,15 @@ import { readFile } from 'node:fs/promises';
 
 import type { Arguments, Argv } from 'yargs';
 
+import { PackageManager } from './PackageManager.js';
 import { SubCommand } from './SubCommand.js';
-import { showError, executeCommand, findFiles, readJsonFile, writeJsonStringToFile } from './Utils.js';
+import { errorMessage, showError, findFiles, readJsonFile, writeJsonStringToFile } from './Utils.js';
+import type { KoolieConfig } from './Utils.js';
+
+/** Parsed command-line options for the `remove-package` sub-command */
+interface RemovePackageOptions {
+  packages?: string[];
+}
 
 export class SubCommandRemovePackage extends SubCommand {
   /**
@@ -22,7 +29,7 @@ export class SubCommandRemovePackage extends SubCommand {
    * @returns the description of this sub-command
    */
   public description(): string {
-    return 'Remove a dependency on a Koolie package';
+    return 'Remove a Koolie package and unwire its default config from the application';
   }
 
   /**
@@ -41,10 +48,27 @@ export class SubCommandRemovePackage extends SubCommand {
    */
   public create(): (yargs: Argv) => Argv {
     return (yargs: Argv) =>
-      yargs.positional('packages', {
-        description: 'The packages to be removed as dependencies',
-        choices: ['types'],
-      });
+      yargs
+        .usage(
+          [
+            'Usage: $0 remove-package <packages..>',
+            '',
+            'Remove one or more Koolie package dependencies and strip their `$extends`',
+            "entries from this application's configuration files.",
+          ].join('\n')
+        )
+        .positional('packages', {
+          description: 'Names of Koolie packages to remove (e.g. "types" for @koolie/types)',
+          choices: ['types'],
+        })
+        .example('$0 remove-package types', 'Remove @koolie/types and unwire its default config')
+        .epilogue(
+          [
+            'This command edits config files under application/src/config/ that follow',
+            'the koolie template (an opening object with `$extends` as the first key).',
+            'For configs that diverge from this layout, edit `$extends` manually.',
+          ].join('\n')
+        );
   }
 
   /**
@@ -54,8 +78,9 @@ export class SubCommandRemovePackage extends SubCommand {
    */
   public async run(args: Arguments): Promise<number> {
     try {
-      const toBeRemoved = args.packages ?? [];
-      if (!Array.isArray(toBeRemoved) || toBeRemoved.length < 1) {
+      const opts = args as Arguments<RemovePackageOptions>;
+      const toBeRemoved = opts.packages ?? [];
+      if (toBeRemoved.length < 1) {
         throw new Error('Specify at least one package to be removed');
       }
 
@@ -66,8 +91,8 @@ export class SubCommandRemovePackage extends SubCommand {
       }
 
       return 0;
-    } catch (err: any) {
-      showError(err.toString());
+    } catch (err) {
+      showError(errorMessage(err));
       return 1;
     }
   }
@@ -84,8 +109,9 @@ export class SubCommandRemovePackage extends SubCommand {
     if (pkgVersion === undefined) {
       console.error(`Warning: ${pkgName} is not a dependency ... skipping`);
     } else {
-      // Use `yarn` to remove the dependency
-      const rc = await executeCommand('yarn', ['remove', pkgName], { stdio: 'inherit' });
+      // Defer to whichever package manager the consumer is using
+      const pm = await PackageManager.detect();
+      const rc = await pm.remove(pkgName);
       if (rc !== 0) {
         throw new Error(`Failed to remove the dependency ${pkgName}`);
       }
@@ -121,7 +147,7 @@ export class SubCommandRemovePackage extends SubCommand {
     // Read the contents of the config file to see if we need to remove any
     // extensions. It needs to be parsed with JSON5 because it can contain
     // comments.
-    const parsedConfig = await readJsonFile(configFile);
+    const parsedConfig = await readJsonFile<KoolieConfig>(configFile);
 
     // If there's no extension block then we can leave now
     const extensions: string[] = parsedConfig.$extends ?? [];
@@ -153,8 +179,8 @@ export class SubCommandRemovePackage extends SubCommand {
     let unparsedConfig: string;
     try {
       unparsedConfig = await readFile(configFile, 'utf8');
-    } catch (err: any) {
-      showError(`Failed to read ${configFile}: ${err.toString()}`);
+    } catch (err) {
+      showError(`Failed to read ${configFile}: ${errorMessage(err)}`);
       throw err;
     }
 

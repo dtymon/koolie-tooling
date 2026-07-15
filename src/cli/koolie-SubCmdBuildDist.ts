@@ -9,6 +9,13 @@ import { dirExists, filterFile, pathExists } from './Utils.js';
 
 const ALWAYS_COPY: string[] = ['README.md', 'CHANGELOG.md', 'LICENSE', 'yarn.lock'];
 
+/** Parsed command-line options for the `build-dist` sub-command */
+interface BuildDistOptions {
+  root: string | null;
+  dest: string;
+  files?: string[];
+}
+
 export class SubCommandBuildDist extends SubCommand {
   /**
    * Get the name of this sub-command
@@ -59,13 +66,14 @@ export class SubCommandBuildDist extends SubCommand {
    * @returns the exit status of the command
    */
   public async run(args: Arguments): Promise<number> {
-    const dstDir = args.dest as string;
-    const rootDir = args.root as string | null;
+    const opts = args as Arguments<BuildDistOptions>;
+    const dstDir = opts.dest;
+    const rootDir = opts.root;
     await mkdirp(dstDir);
 
     // Copy the specified files and those that are always copied into the
     // destination directory.
-    const additionalFiles: string[] = (args.files as string[]) ?? [];
+    const additionalFiles: string[] = opts.files ?? [];
     const filesToCopy: string[] = ALWAYS_COPY.concat(additionalFiles);
     for (const src of new Set(filesToCopy)) {
       if (await pathExists(src)) {

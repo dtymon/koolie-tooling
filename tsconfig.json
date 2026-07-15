@@ -12,16 +12,17 @@
     "lib": ["ES2024"],
 
     /* Output */
+    "rootDir": "src",
     "outDir": "dist",
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
 
     /* Interop & ESM correctness */
-    "allowSyntheticDefaultImports": false,
-    "esModuleInterop": false,
+    "esModuleInterop": true,
     "resolveJsonModule": true,
     "verbatimModuleSyntax": true,
+    "isolatedModules": true,
 
     /* Type safety */
     "strict": true,
@@ -32,10 +33,6 @@
 
     /* Build hygiene */
     "forceConsistentCasingInFileNames": true,
-    "skipLibCheck": true,
-
-    /* Paths */
-    "baseUrl": "src",
-    "declarationDir": "dist"
+    "skipLibCheck": true
   }
 }

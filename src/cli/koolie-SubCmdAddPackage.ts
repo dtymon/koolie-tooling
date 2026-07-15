@@ -3,16 +3,28 @@ import { readFile } from 'node:fs/promises';
 
 import type { Arguments, Argv } from 'yargs';
 
+import { PackageManager } from './PackageManager.js';
 import { SubCommand } from './SubCommand.js';
 import {
+  errorMessage,
   showError,
-  executeCommand,
   fileExists,
   findFiles,
   readJsonFile,
+  resolvePackageRoot,
   writeJsonFile,
   writeJsonStringToFile,
 } from './Utils.js';
+import type { KoolieConfig } from './Utils.js';
+
+/** Parsed command-line options for the `add-package` sub-command */
+interface AddPackageOptions {
+  packages?: string[];
+  ver?: string;
+  tilde: boolean;
+  caret: boolean;
+  force: boolean;
+}
 
 export class SubCommandAddPackage extends SubCommand {
   /**
@@ -30,7 +42,7 @@ export class SubCommandAddPackage extends SubCommand {
    * @returns the description of this sub-command
    */
   public description(): string {
-    return 'Add a dependency on a Koolie package';
+    return 'Add a Koolie package and wire its default config into the application';
   }
 
   /**
@@ -50,32 +62,57 @@ export class SubCommandAddPackage extends SubCommand {
   public create(): (yargs: Argv) => Argv {
     return (yargs: Argv) =>
       yargs
+        .usage(
+          [
+            'Usage: $0 add-package <packages..> [options]',
+            '',
+            'Add one or more Koolie packages as dependencies and import their',
+            'default configuration into this application via `$extends` references.',
+          ].join('\n')
+        )
         .positional('packages', {
-          description: 'The packages to be added as dependencies',
+          description: 'Names of Koolie packages to add (e.g. "types" for @koolie/types)',
           choices: ['types'],
         })
         .option('ver', {
           alias: 'v',
-          description: 'Specify the version of the package to depend on',
+          description: 'Version of the package to depend on (defaults to the @koolie/tooling version)',
         })
         .option('tilde', {
           alias: 't',
-          description: 'Limit the dependency to use a version with the same minor number',
+          description: 'Pin the dependency to the same minor version (~x.y.z)',
           type: 'boolean',
           default: true,
         })
         .option('caret', {
           alias: 'c',
-          description: 'Limit the dependency to use a version with the same major number',
+          description: 'Pin the dependency to the same major version (^x.y.z)',
           type: 'boolean',
           default: false,
         })
         .option('force', {
           alias: 'f',
-          description: 'Normally no action will be taken if the dependency already exists',
+          description: 'Re-add even if the dependency is already at the target version',
           type: 'boolean',
           default: false,
-        });
+        })
+        .example('$0 add-package types', 'Add @koolie/types at the same version as @koolie/tooling')
+        .example('$0 add-package types --ver 0.7.0', 'Add @koolie/types pinned to a specific version')
+        .epilogue(
+          [
+            'This command edits config files under application/src/config/ that follow',
+            'the koolie template:',
+            '',
+            '  {',
+            '    "$extends": [...],',
+            '    ...',
+            '  }',
+            '',
+            'For configs that diverge from this layout, edit `$extends` manually. Any',
+            'comments inside the `$extends` array itself are not preserved; comments',
+            'elsewhere in the file are.',
+          ].join('\n')
+        );
   }
 
   /**
@@ -85,8 +122,9 @@ export class SubCommandAddPackage extends SubCommand {
    */
   public async run(args: Arguments): Promise<number> {
     try {
-      const toBeAdded = args.packages ?? [];
-      if (!Array.isArray(toBeAdded) || toBeAdded.length < 1) {
+      const opts = args as Arguments<AddPackageOptions>;
+      const toBeAdded = opts.packages ?? [];
+      if (toBeAdded.length < 1) {
         throw new Error('Specify at least one package to be added');
       }
 
@@ -105,13 +143,13 @@ export class SubCommandAddPackage extends SubCommand {
       }
 
       const match = /^[^0-9]*(\d+\.\d+\.\d+)/.exec(buildVersion);
-      if (match) {
+      if (match?.[1] !== undefined) {
         buildVersion = match[1];
       }
 
       // Show a warning if an explicit version was specified by the user that
       // does not match the version of the tooling.
-      const versionToUse = args.ver ?? buildVersion;
+      const versionToUse = opts.ver ?? buildVersion;
       if (versionToUse !== buildVersion) {
         console.error('Warning: Mixing different versions for Koolie packages is discouraged');
         console.error(`  Koolie tooling version: ${buildVersion}`);
@@ -119,14 +157,14 @@ export class SubCommandAddPackage extends SubCommand {
       }
 
       const dependencies = (manifest.dependencies ?? {}) as Record<string, string>;
-      const fullVersion = args.caret ? `^${versionToUse}` : `~${versionToUse}`;
+      const fullVersion = opts.caret ? `^${versionToUse}` : `~${versionToUse}`;
       for (const name of toBeAdded) {
-        await this.addDependency(args, dependencies, name, fullVersion);
+        await this.addDependency(opts, dependencies, name, fullVersion);
       }
 
       return 0;
-    } catch (err: any) {
-      showError(err.toString());
+    } catch (err) {
+      showError(errorMessage(err));
       return 1;
     }
   }
@@ -134,32 +172,35 @@ export class SubCommandAddPackage extends SubCommand {
   /**
    * Add a dependency on the given package at the given version
    *
-   * @param args - the command line arguments
+   * @param opts - the parsed command-line options
    * @param dependencies - the package dependencies
    * @param name - the dependency to add
    * @param version - the version to add
    */
   private async addDependency(
-    args: Arguments,
+    opts: Arguments<AddPackageOptions>,
     dependencies: Record<string, unknown>,
     name: string,
     version: string
   ): Promise<void> {
     const pkgName = `@koolie/${name}`;
     const pkgVersion = dependencies[pkgName];
-    if (!args.force && pkgVersion === version) {
+    if (!opts.force && pkgVersion === version) {
       console.error(`Warning: ${pkgName}@${version} is already a dependency ... skipping`);
     } else {
-      // Use `yarn` to add the dependency
-      const rc = await executeCommand('yarn', ['add', `${pkgName}@${version}`], { stdio: 'inherit' });
+      // Defer to whichever package manager the consumer is using
+      const pm = await PackageManager.detect();
+      const rc = await pm.add(`${pkgName}@${version}`);
       if (rc !== 0) {
         throw new Error(`Failed to add the dependency ${pkgName}@${version}`);
       }
     }
 
     // Now find all configuration files that the package has and make sure they
-    // are imported by this application.
-    const configRoot = path.join('node_modules', '@koolie', name, 'config');
+    // are imported by this application. Resolve the package root via Node's
+    // resolver so this works under any package manager linker.
+    const packageRoot = resolvePackageRoot(pkgName);
+    const configRoot = path.join(packageRoot, 'config');
     const configFiles = await findFiles(configRoot, (item) => {
       if (item.stats.isFile()) {
         const parentDir = path.basename(path.dirname(item.path));
@@ -170,13 +211,17 @@ export class SubCommandAddPackage extends SubCommand {
       return false;
     });
 
-    const regex = new RegExp(`(${configRoot}.*\\.json)$`);
+    // The `$extends` strings written into the consumer's configs follow a
+    // runtime contract owned by the config loader: they're literal
+    // `node_modules/@koolie/<name>/config/<file>` paths. That contract is
+    // outside the scope of this CLI to change, so the file walk uses the
+    // resolved package root (PM-agnostic) but the string we write back keeps
+    // the legacy shape.
+    const legacyConfigRoot = path.join('node_modules', '@koolie', name, 'config');
     for (const configFile of configFiles) {
-      const match = regex.exec(configFile);
-      if (match) {
-        const relativePath = match[1]!;
-        await this.addConfigImport(relativePath);
-      }
+      const relativeWithinConfig = path.relative(configRoot, configFile);
+      const legacyPath = path.join(legacyConfigRoot, relativeWithinConfig);
+      await this.addConfigImport(legacyPath);
     }
   }
 
@@ -196,9 +241,9 @@ export class SubCommandAddPackage extends SubCommand {
       // We just need to create this config file and extend it from the one
       // provided by the package we now depend on.
       try {
-        await writeJsonFile(destFile, { $extends: [configToExtendFrom] });
-      } catch (err: any) {
-        showError(`Failed to create config file "${destFile}": ${err.toString()}`);
+        await writeJsonFile<KoolieConfig>(destFile, { $extends: [configToExtendFrom] });
+      } catch (err) {
+        showError(`Failed to create config file "${destFile}": ${errorMessage(err)}`);
         throw err;
       }
 
@@ -208,9 +253,9 @@ export class SubCommandAddPackage extends SubCommand {
     // The config file already exists. Read its contents to see if we need to
     // add this extension. It needs to be parsed with JSON5 because it can
     // contain comments.
-    const parsedConfig = await readJsonFile(destFile);
-    const extensions = parsedConfig.$extends ?? [];
-    if (extensions.indexOf(configToExtendFrom) >= 0) {
+    const parsedConfig = await readJsonFile<KoolieConfig>(destFile);
+    const extensions: string[] = parsedConfig.$extends ?? [];
+    if (extensions.includes(configToExtendFrom)) {
       return;
     }
 
@@ -227,8 +272,8 @@ export class SubCommandAddPackage extends SubCommand {
     let unparsedConfig: string;
     try {
       unparsedConfig = await readFile(destFile, 'utf8');
-    } catch (err: any) {
-      showError(`Failed to read ${destFile}: ${err.toString()}`);
+    } catch (err) {
+      showError(`Failed to read ${destFile}: ${errorMessage(err)}`);
       throw err;
     }
 

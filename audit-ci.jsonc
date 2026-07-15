@@ -1,0 +1,28 @@
+{
+  // Schema gives IDE completion for the rest of the file
+  "$schema": "https://github.com/IBM/audit-ci/raw/main/docs/schema.json",
+
+  // Fail the audit on high or critical advisories. Mirrors the prior
+  // `--min-severity high` setting under improved-yarn-audit. Moderate and
+  // low findings are reported but do not gate the build.
+  "high": true,
+
+  // Skip devDependencies. This project keeps tooling in `dependencies` (so
+  // dependents inherit it), so the flag has little effect today, but is the
+  // safer default for downstream apps that adopt this same configuration.
+  "skip-dev": true,
+
+  // Per-advisory suppressions. Prefer the object form so that each entry
+  // carries a reason and an explicit expiry — once the date passes the build
+  // fails, forcing the team to re-evaluate the suppression rather than
+  // letting it rot. Example:
+  //
+  //   {
+  //     "GHSA-xxxx-yyyy-zzzz": {
+  //       "active": true,
+  //       "notes": "Not exploitable in our config; tracking upstream PR #123",
+  //       "expiry": "2026-09-01"
+  //     }
+  //   }
+  "allowlist": []
+}
